@@ -12,6 +12,7 @@
   "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
+    "modules": "@/modules",
     "hooks": "@/hooks",
     "lib": "@/lib",
     "utils": "@workspace/ui/lib/utils",
