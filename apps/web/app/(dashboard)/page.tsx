@@ -21,6 +21,10 @@ export default function Page() {
       <UploadDialog
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
+        openCreateFolderDialog={createFolderDialogOpen}
+        onOpenCreateFolderDialogChange={
+          setCreateFolderDialogOpen
+        }
       />
       <CreateFolderDialog
         open={createFolderDialogOpen}

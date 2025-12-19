@@ -1,12 +1,14 @@
 import { ConvexError, v } from "convex/values";
 import getFileType from "../../utils/getFileType.js";
-import { internalMutation } from "../_generated/server.js";
+import { mutation } from "../_generated/server.js";
 
-export const saveMediaRecord = internalMutation({
+
+export const saveMediaRecord = mutation({
   args: {
     name: v.string(),
     pathname: v.string(),
     url: v.string(),
+    isPublic: v.optional(v.boolean()),
     size: v.number(),
     mimeType: v.string(),
     parentId: v.optional(v.id("media")),
@@ -43,6 +45,7 @@ export const saveMediaRecord = internalMutation({
       name: args.name,
       pathname: args.pathname,
       url: args.url,
+      isPublic: args.isPublic ?? false,
       size: args.size,
       mimeType: args.mimeType,
       parentId: args.parentId,

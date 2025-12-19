@@ -25,6 +25,7 @@ export default defineSchema({
     // Categorization (optional)
     category: v.optional(v.string()), // e.g., 'profile_picture', 'document', 'video'
     folderId: v.optional(v.id("folders")), // For organizing files into folders
+    isPublic: v.boolean(), // For access control
 
     // AI & Transformation Metadata
     isModerated: v.boolean(),
@@ -61,9 +62,14 @@ export default defineSchema({
 
   folders: defineTable({
     organizationId: v.string(), // CRUCIAL for security (multi-tenancy)
-    createdByUserId: v.string(), //From Clerk JWT
+    userId: v.string(), //From Clerk JWT
     isPublic: v.boolean(),
     name: v.string(),
     parentFolderId: v.optional(v.id("folders")),
-  }).index("by_organization", ["organizationId"]),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_user", [
+      "organizationId",
+      "userId",
+    ]),
 });

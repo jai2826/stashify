@@ -8,7 +8,6 @@
  * @module
  */
 
-import type * as main_files from "../main/files.js";
 import type * as main_media from "../main/media.js";
 import type * as private_folder from "../private/folder.js";
 
@@ -19,7 +18,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  "main/files": typeof main_files;
   "main/media": typeof main_media;
   "private/folder": typeof private_folder;
 }>;
