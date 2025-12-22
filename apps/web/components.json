@@ -16,6 +16,7 @@
     "hooks": "@/hooks",
     "lib": "@/lib",
     "utils": "@workspace/ui/lib/utils",
+    "atoms": "@workspace/ui/lib/atoms",
     "ui": "@workspace/ui/components"
   }
 }

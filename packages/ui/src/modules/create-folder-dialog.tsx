@@ -35,12 +35,10 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { SearchableSelect } from "@workspace/ui/modules/searchable-select";
+import { useAtomValue, useSetAtom } from "jotai";
+import { createFolderDialogOpenAtom } from "@workspace/ui/lib/atoms";
 
-interface CreateFolderDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onFolderCreated?: () => void;
-}
+
 
 const FolderFormSchema = z.object({
   name: z.string().min(1, "Folder name is required"),
@@ -48,11 +46,14 @@ const FolderFormSchema = z.object({
   isPublic: z.boolean(),
 });
 
-export const CreateFolderDialog = ({
-  open,
-  onOpenChange,
-  onFolderCreated,
-}: CreateFolderDialogProps) => {
+export const CreateFolderDialog = () => {
+  const open = useAtomValue(
+    createFolderDialogOpenAtom
+  );
+  const onOpenChange = useSetAtom(
+    createFolderDialogOpenAtom
+  );
+
   const createFolder = useMutation(
     api.private.folder.createFolder
   );
@@ -117,7 +118,6 @@ export const CreateFolderDialog = ({
             <div className="my-4  md:grid md:grid-cols-2 gap-4 space-y-4">
               {/* Folder Name */}
               <FormField
-              
                 control={form.control}
                 name="name"
                 render={({ field }) => (

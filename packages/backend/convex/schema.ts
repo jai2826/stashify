@@ -12,6 +12,7 @@ export default defineSchema({
     name: v.string(),
     mimeType: v.string(),
     size: v.number(),
+    thumbnailUrl: v.optional(v.string()),
 
     // File Type Classification
     type: v.string(), // e.g., 'image', 'video', 'document'
@@ -43,7 +44,8 @@ export default defineSchema({
     embedding: v.optional(v.array(v.number())),
   })
     // CRITICAL: Always index by organizationId for secure querying
-    .index("by_organization", ["organizationId"])
+    .index("by_organizationId", ["organizationId"])
+    .index("by_organizationId_userId", ["organizationId", "userId"])
     .index("by_user", ["userId"])
     // Recommended: Index by organization and file type for fast filtering in the dashboard
     .index("by_org_type", ["organizationId", "mimeType"])
@@ -52,10 +54,10 @@ export default defineSchema({
       searchField: "tags",
       filterFields: ["organizationId"], // Only search within the tenant
     })
-    .index("by_parent", ["parentId"])
+    .index("by_parentId", ["parentId"])
     .index("by_category", ["category"])
     .index("by_folder", ["folderId"])
-    .index("by_organization_category", [
+    .index("by_organizationId_category", [
       "organizationId",
       "category",
     ]),

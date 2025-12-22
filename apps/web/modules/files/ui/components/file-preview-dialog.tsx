@@ -1,26 +1,17 @@
 "use client";
-
-import { zodResolver } from "@hookform/resolvers/zod";
-import { api } from "@workspace/backend/convex/_generated/api";
-import { Button } from "@workspace/ui/components/button";
-import { Checkbox } from "@workspace/ui/components/checkbox";
+import {
+  FileToPreviewAtom,
+  isFilePreviewOpen,
+} from "@/modules/files/ui/atom";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import { Input } from "@workspace/ui/components/input";
-import { useMutation, useQuery } from "convex/react";
-
-import { upload } from "@vercel/blob/client";
-import {
-  Dropzone,
-  DropzoneContent,
-  DropzoneEmptyState,
-} from "@workspace/ui/components/dropzone";
+import { useAtom, useAtomValue } from "jotai";
+import Image from "next/image";
+import { VideoPlayer } from "@workspace/ui/modules/video-player";
 import {
   Form,
   FormControl,
@@ -29,181 +20,49 @@ import {
   FormLabel,
   FormMessage,
 } from "@workspace/ui/components/form";
-import {
-  createFolderDialogOpenAtom,
-  uploadDialogOpenAtom,
-} from "@workspace/ui/lib/atoms";
-import { SearchableSelect } from "@workspace/ui/modules/searchable-select";
-import { useAtom, useSetAtom } from "jotai";
+import { Input } from "@workspace/ui/components/input";
+import { Button } from "@workspace/ui/components/button";
 import {
   PlusCircleIcon,
   SaveIcon,
   XCircleIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
-import { generateThumbnail } from "@workspace/ui/lib/video-util";
+import { SearchableSelect } from "@workspace/ui/modules/searchable-select";
+import { Checkbox } from "@workspace/ui/components/checkbox";
+import {
+  Dropzone,
+  DropzoneContent,
+  DropzoneEmptyState,
+} from "@workspace/ui/components/dropzone";
 
-// interface UploadDialogProps {
-//   open: boolean;
-//   onOpenChange: (open: boolean) => void;
-//   onFileUploaded?: () => void;
-
-//   openCreateFolderDialog?: boolean;
-//   onOpenCreateFolderDialogChange?: (open: boolean) => void;
-//   onCreateFolderCompleted?: (
-//     openCreateFolderDialog: boolean,
-//     open: boolean
-//   ) => void;
-// }
-
-const MediaSchema = z.object({
-  name: z.string().min(1, "File name is required"),
-  category: z.string().optional(),
-  folderId: z.string().optional(),
-  isPublic: z.boolean(),
-  tags: z.string().optional(),
-  file: z.boolean(),
-});
-
-export const UploadDialog = () => {
-  const [open, setOpen] = useAtom(uploadDialogOpenAtom);
-
-  const setCreateFolderDialogOpen = useSetAtom(
-    createFolderDialogOpenAtom
-  );
-
-  const [uploadedFiles, setUploadedFiles] = useState<
-    File[]
-  >([]);
-  const [disabled, setDisabled] = useState(true);
-  const existingFolders = useQuery(
-    api.private.folder.getFoldersByOrganizationAndUser,
-    {}
-  );
-
-  const form = useForm<z.infer<typeof MediaSchema>>({
-    resolver: zodResolver(MediaSchema),
-    defaultValues: {
-      name: "",
-      category: "",
-      folderId: "",
-      isPublic: false,
-      tags: "",
-      file: false,
-    },
-  });
-
-  const saveMediaRecord = useMutation(
-    api.main.media.saveMediaRecord
-  ); // Your existing mutation
-
-  const onSubmit = async (
-    data: z.infer<typeof MediaSchema>
-  ) => {
-    if (!uploadedFiles[0]) return;
-
-    try {
-      let thumbUrl = undefined;
-      if (uploadedFiles[0].type.startsWith("video/")) {
-        const thumbBlob = await generateThumbnail(
-          uploadedFiles[0]
-        );
-        const thumbFile = new File(
-          [thumbBlob],
-          `${uploadedFiles[0].name}_thumbnail.jpg`,
-          { type: "image/jpeg" }
-        );
-
-        // Upload thumbnail to Vercel Blob
-        const thumbResult = await upload(
-          thumbFile.name,
-          thumbFile,
-          {
-            access: "public",
-            handleUploadUrl: "/api/upload",
-          }
-        );
-        thumbUrl = thumbResult.url;
-      }
-
-      const blob = await upload(
-        data.name ?? uploadedFiles[0].name,
-        uploadedFiles[0],
-        {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-        }
-      );
-
-      // 2. SAVE METADATA: Browser -> Convex
-      await saveMediaRecord({
-        url: blob.url,
-        pathname: blob.pathname,
-        name: data.name,
-        mimeType: uploadedFiles[0].type,
-        size: uploadedFiles[0].size,
-        folderId: data.folderId as any,
-        category: data.category,
-        thumbnailUrl: thumbUrl,
-        tags: data.tags
-          ? data.tags.split(",").map((t) => t.trim())
-          : [],
-      });
-
-      setUploadedFiles([]);
-      toast.success("Media uploaded and saved!");
-      setOpen(false);
-      form.reset();
-    } catch (error) {
-      setUploadedFiles([]);
-      console.error(error);
-      toast.error("Upload failed!!");
-    }
-  };
-
-  const handleCancel = () => {
-    setOpen(false);
-    setUploadedFiles([]);
-    form.reset();
-  };
-  const handleFileDrop = (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file) {
-      setUploadedFiles([file]);
-      if (!form.getValues("name")) {
-        form.setValue("name", file.name);
-      }
-      form.setValue("file", true);
-      setDisabled(false);
-    } else {
-      form.setValue("file", false);
-      setDisabled(true);
-      setUploadedFiles([]);
-    }
-  };
-
+export const FilePreviewDialog = () => {
+  const [open, setOpen] = useAtom(isFilePreviewOpen);
+  const file = useAtomValue(FileToPreviewAtom);
   return (
     <Dialog
       onOpenChange={(isOpen) => {
         setOpen(isOpen);
-        setUploadedFiles([]);
+        // setUploadedFiles([]);
       }}
       open={open}>
       <DialogContent className="flex-1  md:min-w-[calc(100vw-3rem)] lg:min-w-[900px]">
+        <DialogTitle>{file?.name}</DialogTitle>
+        <div className="w-full border p-4">
+          {file?.type === "image" && (
+            <ImagePreview
+              src={file?.url ?? ""}
+              alt={file?.name ?? "File Preview"}
+            />
+          )}
+          {file?.type === "video" && (
+            <VideoPlayer
+              url={file.url ?? ""}
+              poster={file.thumbnailUrl}
+            />
+          )}
+        </div>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <DialogHeader>
-              <DialogTitle>Upload Media</DialogTitle>
-              <DialogDescription>
-                Upload your media files here. You can
-                organize them into folders and set their
-                visibility.
-              </DialogDescription>
-            </DialogHeader>
-
             <div className="my-4 md:grid md:grid-cols-2 gap-4 space-y-4">
               {/* Media Name */}
               <FormField
@@ -386,5 +245,26 @@ export const UploadDialog = () => {
         </Form>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const ImagePreview = ({
+  src,
+  alt,
+}: {
+  src: string;
+  alt: string;
+}) => {
+  return (
+    <div className="w-full aspect-video flex items-center justify-center bg-muted/30 rounded-md overflow-hidden">
+      <Image
+        loading="lazy"
+        alt={alt}
+        src={src}
+        width={200}
+        height={120}
+        className="h-full w-auto object-contain"
+      />
+    </div>
   );
 };

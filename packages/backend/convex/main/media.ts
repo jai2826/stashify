@@ -15,6 +15,7 @@ export const saveMediaRecord = mutation({
     category: v.optional(v.string()),
     folderId: v.optional(v.id("folders")),
     tags: v.array(v.string()),
+    thumbnailUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -58,6 +59,7 @@ export const saveMediaRecord = mutation({
       isModerated: false,
       isOptimized: false,
       originalUrl: args.url,
+      thumbnailUrl: args.thumbnailUrl,
     });
 
     return {

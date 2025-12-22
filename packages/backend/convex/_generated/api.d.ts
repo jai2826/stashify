@@ -10,6 +10,7 @@
 
 import type * as main_media from "../main/media.js";
 import type * as private_folder from "../private/folder.js";
+import type * as public_media from "../public/media.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +21,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "main/media": typeof main_media;
   "private/folder": typeof private_folder;
+  "public/media": typeof public_media;
 }>;
 
 /**

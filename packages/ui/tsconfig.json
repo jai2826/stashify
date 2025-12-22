@@ -5,10 +5,11 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "paths": {
+      // "@workspace/*": ["./src/*"],
       "@workspace/ui/*": ["./src/*"],
       "@workspace/backend/*": ["../../packages/backend/*"]
     }
   },
-  "include": ["."],
+  "include": [".", "src/**/*", "../../apps/web/modules/files/ui/components/video-preview.tsx"],
   "exclude": ["node_modules", "dist"]
 }

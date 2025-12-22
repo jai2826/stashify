@@ -4,7 +4,10 @@ import "@workspace/ui/globals.css";
 import { Providers } from "@/components/providers";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AuthGuard } from "@/modules/auth/ui/components/auth-guard";
-import { Toaster } from "@workspace/ui/components/sonner"
+import { Toaster } from "@workspace/ui/components/sonner";
+import { Provider as JotaiProvider } from "jotai";
+import { UploadDialog } from "@workspace/ui/modules/upload-dialog";
+import { CreateFolderDialog } from "@workspace/ui/modules/create-folder-dialog";
 const fontSans = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -26,14 +29,15 @@ export default function RootLayout({
       suppressHydrationWarning>
       <body
         className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased `}>
-        <ClerkProvider>
-          <Providers>
-            <Toaster/>
-            <AuthGuard>
-              
-              {children}</AuthGuard>
-          </Providers>
-        </ClerkProvider>
+        <JotaiProvider>
+          <ClerkProvider>
+            <Providers>
+              <Toaster />
+             
+              <AuthGuard>{children}</AuthGuard>
+            </Providers>
+          </ClerkProvider>
+        </JotaiProvider>
       </body>
     </html>
   );
