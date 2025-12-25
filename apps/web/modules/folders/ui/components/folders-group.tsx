@@ -1,55 +1,50 @@
 import {
-  FileToPreviewAtom,
-  isFilePreviewOpen,
+  FolderToPreviewAtom,
+  isFolderPreviewOpen,
 } from "@/modules/files/ui/atom";
-import MediaPreview from "@/modules/files/ui/components/media-preview";
+import { FolderCard } from "@/modules/folders/ui/components/folder-card";
 import { api } from "@workspace/backend/convex/_generated/api";
 import { Doc } from "@workspace/backend/convex/_generated/dataModel";
 import {
   ScrollArea,
   ScrollBar,
 } from "@workspace/ui/components/scroll-area";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@workspace/ui/components/tabs";
+import { useCreateFolderModal } from "@workspace/ui/hooks/use-create-folder-modal";
 import { useQuery } from "convex/react";
 import { useAtom, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
-export const FilesGroup = () => {
-  const [openFilePreview, setOpenFilePreview] = useAtom(
-    isFilePreviewOpen
-  );
-  const setFileToPreview = useSetAtom(FileToPreviewAtom);
 
-  const [tabValue, setTabValue] = useState("all");
-  const files = useQuery(
-    api.public.media.getFilesByOrganization,
+type FolderType = Doc<"folders"> & {
+  previewFiles?: Doc<"media">[];
+};
+
+export const FoldersGroup = () => {
+  const [openFolderPreview, setOpenFolderPreview] = useAtom(
+    isFolderPreviewOpen
+  );
+  const setFolderToPreview = useSetAtom(
+    FolderToPreviewAtom
+  );
+
+  const folders = useQuery(
+    api.private.folder.listFoldersWithPreviews,
     {}
   );
-  const [filteredFiles, setFilteredFiles] = useState<
-    Doc<"media">[]
+  const [filteredFolders, setFilteredFolders] = useState<
+    FolderType[]
   >([]);
 
   useEffect(() => {
-    if (tabValue === "all") {
-      setFilteredFiles(files || []);
-      return;
-    }
-    setFilteredFiles(
-      files?.filter((file) => {
-        return file.type === tabValue;
-      }) || []
-    );
-  }, [tabValue, files]);
+    setFilteredFolders(folders || []);
+    return;
+  }, [folders]);
 
-  if (!files) {
+  if (!folders) {
     return <div>Loading...</div>;
   }
   return (
     <div className="w-full h-fit lg:w-3/5 border rounded-md py-4 px-2">
-      <div className="pb-3 px-3 flex justify-between items-end gap-2">
+      {/* <div className="pb-3 px-3 flex justify-between items-end gap-2">
         <Tabs
           defaultValue="all"
           value={tabValue}
@@ -81,19 +76,30 @@ export const FilesGroup = () => {
         <div className="text-xl text-nowrap text-primary-foreground font-medium">
           {filteredFiles.length} Files
         </div>
-      </div>
+      </div> */}
       <ScrollArea>
         <div className=" py-0 p-3">
           <div className=" lg:max-h-[calc(100vh-188px)] grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 ">
-            {filteredFiles.map((file) => {
+            {filteredFolders.map((folder) => {
               return (
                 <div
+                  key={folder._id}
                   onClick={() => {
-                    setFileToPreview(file);
-                    setOpenFilePreview(true);
-                  }}
-                  key={file._id}>
-                  <MediaPreview media={file} />
+                    setFolderToPreview({
+                      _id: folder._id,
+                      _creationTime: folder._creationTime,
+                      name: folder.name,
+                      organizationId: folder.organizationId,
+                      userId: folder.userId,
+                      isPublic: folder.isPublic,
+                      parentFolderId: folder.parentFolderId,
+                    });
+                    setOpenFolderPreview(true);
+                  }}>
+                  <FolderCard
+                    key={folder._id}
+                    folder={folder}
+                  />
                 </div>
               );
             })}

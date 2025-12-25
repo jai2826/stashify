@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@workspace/backend/convex/_generated/api";
+import { Id } from "@workspace/backend/convex/_generated/dataModel";
 import { Button } from "@workspace/ui/components/button";
 import { Checkbox } from "@workspace/ui/components/checkbox";
 import {
@@ -36,6 +37,7 @@ import {
 import { SearchableSelect } from "@workspace/ui/modules/searchable-select";
 import { useAtom, useSetAtom } from "jotai";
 import {
+  LucideMessageCircleQuestion,
   PlusCircleIcon,
   SaveIcon,
   XCircleIcon,
@@ -44,20 +46,13 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { generateThumbnail } from "@workspace/ui/lib/video-util";
-
-// interface UploadDialogProps {
-//   open: boolean;
-//   onOpenChange: (open: boolean) => void;
-//   onFileUploaded?: () => void;
-
-//   openCreateFolderDialog?: boolean;
-//   onOpenCreateFolderDialogChange?: (open: boolean) => void;
-//   onCreateFolderCompleted?: (
-//     openCreateFolderDialog: boolean,
-//     open: boolean
-//   ) => void;
-// }
+import { useClientIdentity } from "@workspace/ui/hooks/use-clerk-identity";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip";
+import { generateThumbnail as createThumbnail } from "@workspace/ui/lib/video-util";
 
 const MediaSchema = z.object({
   name: z.string().min(1, "File name is required"),
@@ -66,11 +61,18 @@ const MediaSchema = z.object({
   isPublic: z.boolean(),
   tags: z.string().optional(),
   file: z.boolean(),
+  thumbnailFile: z.boolean().optional(),
 });
 
 export const UploadDialog = () => {
   const [open, setOpen] = useAtom(uploadDialogOpenAtom);
-
+  const { userId, orgId } = useClientIdentity();
+  const [generateThumbnail, setGenerateThumbnail] =
+    useState(false);
+  const [
+    uploadedThumbnailFiles,
+    setUploadedThumbnailFiles,
+  ] = useState<File[]>([]);
   const setCreateFolderDialogOpen = useSetAtom(
     createFolderDialogOpenAtom
   );
@@ -89,10 +91,11 @@ export const UploadDialog = () => {
     defaultValues: {
       name: "",
       category: "",
-      folderId: "",
+      folderId: undefined,
       isPublic: false,
       tags: "",
       file: false,
+      thumbnailFile: false,
     },
   });
 
@@ -104,11 +107,16 @@ export const UploadDialog = () => {
     data: z.infer<typeof MediaSchema>
   ) => {
     if (!uploadedFiles[0]) return;
+    console.log(data);
 
+    const structuredPathname = (filename: string) => {
+      return `${userId}/${orgId}/media/${filename}`;
+    };
     try {
       let thumbUrl = undefined;
-      if (uploadedFiles[0].type.startsWith("video/")) {
-        const thumbBlob = await generateThumbnail(
+      // Case A: Generate from Video
+      if (isVideo && generateThumbnail) {
+        const thumbBlob = await createThumbnail(
           uploadedFiles[0]
         );
         const thumbFile = new File(
@@ -116,21 +124,35 @@ export const UploadDialog = () => {
           `${uploadedFiles[0].name}_thumbnail.jpg`,
           { type: "image/jpeg" }
         );
-
-        // Upload thumbnail to Vercel Blob
-        const thumbResult = await upload(
-          thumbFile.name,
+        const result = await upload(
+          structuredPathname(thumbFile.name),
           thumbFile,
           {
             access: "public",
             handleUploadUrl: "/api/upload",
           }
         );
-        thumbUrl = thumbResult.url;
+        thumbUrl = result.url;
+      }
+      // Case B: Use Manually Uploaded Thumbnail
+      else if (isVideo && uploadedThumbnailFiles[0]) {
+        const result = await upload(
+          structuredPathname(
+            uploadedThumbnailFiles[0].name
+          ),
+          uploadedThumbnailFiles[0],
+          {
+            access: "public",
+            handleUploadUrl: "/api/upload",
+          }
+        );
+        thumbUrl = result.url;
       }
 
       const blob = await upload(
-        data.name ?? uploadedFiles[0].name,
+        structuredPathname(
+          data.name ?? uploadedFiles[0].name
+        ),
         uploadedFiles[0],
         {
           access: "public",
@@ -145,9 +167,13 @@ export const UploadDialog = () => {
         name: data.name,
         mimeType: uploadedFiles[0].type,
         size: uploadedFiles[0].size,
-        folderId: data.folderId as any,
+        folderId: data?.folderId
+          ? (data.folderId as Id<"folders">)
+          : undefined,
         category: data.category,
         thumbnailUrl: thumbUrl,
+        isFileValid: data.file,
+        isPublic: data.isPublic,
         tags: data.tags
           ? data.tags.split(",").map((t) => t.trim())
           : [],
@@ -165,25 +191,59 @@ export const UploadDialog = () => {
   };
 
   const handleCancel = () => {
-    setOpen(false);
-    setUploadedFiles([]);
     form.reset();
+    setUploadedFiles([]);
+    setOpen(false);
   };
   const handleFileDrop = (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
       setUploadedFiles([file]);
+
+      // Auto-fill name if empty
       if (!form.getValues("name")) {
         form.setValue("name", file.name);
       }
       form.setValue("file", true);
       setDisabled(false);
+
+      // LOGIC FIX: Reset thumbnail states if the new file is NOT a video
+      if (!file.type.startsWith("video/")) {
+        setGenerateThumbnail(false);
+        setUploadedThumbnailFiles([]);
+        form.setValue("thumbnailFile", false);
+      } else {
+        setGenerateThumbnail(true);
+      }
     } else {
       form.setValue("file", false);
       setDisabled(true);
       setUploadedFiles([]);
+      setGenerateThumbnail(false);
     }
   };
+
+  const handleThumbnailFileDrop = (
+    acceptedFiles: File[]
+  ) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      setUploadedThumbnailFiles([file]);
+      setGenerateThumbnail(false);
+      form.setValue("thumbnailFile", true);
+      setDisabled(false);
+    } else {
+      form.setValue("thumbnailFile", false);
+      setDisabled(true);
+      setUploadedThumbnailFiles([]);
+    }
+  };
+
+  // Inside UploadDialog component
+  const stagedFile = uploadedFiles[0];
+  // Only show video options if the dropped file exists and is a video
+  const isVideo =
+    !!stagedFile && stagedFile.type.startsWith("video/");
 
   return (
     <Dialog
@@ -309,27 +369,35 @@ export const UploadDialog = () => {
                 control={form.control}
                 name="isPublic"
                 render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel>Is Public ?</FormLabel>
+                  /* We remove space-y-2 and add self-start to pin it to the top of the grid cell */
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 self-start">
                     <FormControl>
                       <Checkbox
                         id="isPublic"
-                        className="size-6"
+                        className="size-5 border-gray-300"
                         checked={field.value}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
-                    <FormMessage />
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Is Public ?</FormLabel>
+                      <FormMessage />
+                    </div>
                   </FormItem>
                 )}
               />
+              <div>
+                {/* tempSpane */}
+                </div>
               {/* File */}
               <FormField
                 control={form.control}
-                name="isPublic"
+                name="file"
                 render={({ field }) => (
                   <FormItem className="space-y-2">
-                    <FormLabel>Dropzone</FormLabel>
+                    <FormLabel className="flex justify-between">
+                      Dropzone
+                    </FormLabel>
                     <FormControl>
                       <Dropzone
                         accept={{
@@ -360,6 +428,92 @@ export const UploadDialog = () => {
                   </FormItem>
                 )}
               />
+              {/* Thumbnail Dropzone */}
+              {isVideo && (
+                <FormField
+                  control={form.control}
+                  name="thumbnailFile"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2 h-fit">
+                      <FormLabel className="flex justify-between h-fit">
+                        Thumbnail Dropzone
+                        {/* <span className="flex items-center gap-x-1">
+                          <Checkbox
+                            disabled={
+                              form.formState.isSubmitting
+                            }
+                            checked={generateThumbnail}
+                            className="border-2 border-primary"
+                            onCheckedChange={(
+                              e: boolean
+                            ) => {
+                              setGenerateThumbnail(e);
+                              if (e)
+                                form.setValue(
+                                  "thumbnailFile",
+                                  !e
+                                );
+                              setUploadedThumbnailFiles([]);
+                            }}
+                          />
+                          Generate Thumbnail
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <LucideMessageCircleQuestion
+                                size={16}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-[60vw] text-xs font-medium  ">
+                              <p>
+                                If you uploaded the new
+                                thumbnail file, and want to
+                                use that as the thumbnail
+                                for the video, please
+                                uncheck this box.
+                              </p>
+                              <p>
+                                If you want us to generate a
+                                new thumbnail from the
+                                video, please check this
+                                box. Old thumbnail or
+                                thumbnail uploaded will be
+                                ignored.
+                              </p>
+                              <p>
+                                Note: This only applies to
+                                video files. and will be
+                                available only when a video
+                                file is uploaded.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </span> */}
+                      </FormLabel>
+                      <FormControl>
+                        <Dropzone
+                          className="w-full"
+                          accept={{
+                            // Images
+                            "image/jpeg": [],
+                            "image/png": [],
+                            "image/webp": [],
+                          }}
+                          disabled={
+                            form.formState.isSubmitting
+                          }
+                          maxFiles={1}
+                          maxSize={500 * 1024 * 1024} // 500 MB
+                          onDrop={handleThumbnailFileDrop}
+                          src={uploadedThumbnailFiles}>
+                          <DropzoneEmptyState />
+                          <DropzoneContent />
+                        </Dropzone>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
             <DialogFooter>
               <Button
@@ -372,7 +526,7 @@ export const UploadDialog = () => {
               </Button>
               <Button
                 disabled={
-                  disabled ?? form.formState.isSubmitting
+                  disabled || form.formState.isSubmitting
                 }
                 className="hover:opacity-80"
                 type="submit">

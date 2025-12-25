@@ -41,6 +41,7 @@ export async function POST(
             "video/3gpp",
           ],
           tokenPayload: JSON.stringify({}),
+          allowOverwrite:true,
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {

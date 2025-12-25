@@ -12,8 +12,8 @@ export async function generateThumbnail(file: File): Promise<Blob> {
 
     video.onseeked = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth-2;
+      canvas.height = video.videoHeight-2;
       const ctx = canvas.getContext("2d");
       ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
       
