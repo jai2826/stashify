@@ -9,7 +9,6 @@ import {
   ScrollArea,
   ScrollBar,
 } from "@workspace/ui/components/scroll-area";
-import { useCreateFolderModal } from "@workspace/ui/hooks/use-create-folder-modal";
 import { useQuery } from "convex/react";
 import { useAtom, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
@@ -41,42 +40,15 @@ export const FoldersGroup = () => {
 
   if (!folders) {
     return <div>Loading...</div>;
+  } else if (folders.length === 0) {
+    return (
+      <div className="italic text-sm w-full h-fit lg:w-3/5 border rounded-md py-4 px-2 flex items-center justify-center">
+        No folders found. Create a folder to get started!
+      </div>
+    );
   }
   return (
     <div className="w-full h-fit lg:w-3/5 border rounded-md py-4 px-2">
-      {/* <div className="pb-3 px-3 flex justify-between items-end gap-2">
-        <Tabs
-          defaultValue="all"
-          value={tabValue}
-          className="w-full max-w-fit"
-          onValueChange={(value) => setTabValue(value)}>
-          <TabsList>
-            <TabsTrigger
-              value="all"
-              className="w-auto px-3">
-              All Files
-            </TabsTrigger>
-            <TabsTrigger
-              value="image"
-              className="w-auto px-3">
-              Images
-            </TabsTrigger>
-            <TabsTrigger
-              value="video"
-              className="w-auto px-3">
-              Videos
-            </TabsTrigger>
-            <TabsTrigger
-              value="gif"
-              className="w-auto px-3">
-              Gifs
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="text-xl text-nowrap text-primary-foreground font-medium">
-          {filteredFiles.length} Files
-        </div>
-      </div> */}
       <ScrollArea>
         <div className=" py-0 p-3">
           <div className=" lg:max-h-[calc(100vh-188px)] grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 ">

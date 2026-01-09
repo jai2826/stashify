@@ -30,29 +30,24 @@ import {
   FormLabel,
   FormMessage,
 } from "@workspace/ui/components/form";
+import { useClientIdentity } from "@workspace/ui/hooks/use-clerk-identity";
 import {
   createFolderDialogOpenAtom,
   uploadDialogOpenAtom,
 } from "@workspace/ui/lib/atoms";
+import { generateThumbnail as createThumbnail } from "@workspace/ui/lib/video-util";
 import { SearchableSelect } from "@workspace/ui/modules/searchable-select";
 import { useAtom, useSetAtom } from "jotai";
 import {
-  LucideMessageCircleQuestion,
   PlusCircleIcon,
   SaveIcon,
   XCircleIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { useClientIdentity } from "@workspace/ui/hooks/use-clerk-identity";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@workspace/ui/components/tooltip";
-import { generateThumbnail as createThumbnail } from "@workspace/ui/lib/video-util";
 
 const MediaSchema = z.object({
   name: z.string().min(1, "File name is required"),
@@ -65,6 +60,10 @@ const MediaSchema = z.object({
 });
 
 export const UploadDialog = () => {
+  const router = useRouter();
+  const vercelCofig = useQuery(
+    api.private.vercel.getVercelConfig
+  );
   const [open, setOpen] = useAtom(uploadDialogOpenAtom);
   const { userId, orgId } = useClientIdentity();
   const [generateThumbnail, setGenerateThumbnail] =
@@ -110,7 +109,7 @@ export const UploadDialog = () => {
     console.log(data);
 
     const structuredPathname = (filename: string) => {
-      return `${userId}/${orgId}/media/${filename}`;
+      return `${orgId}/${userId}/media/${filename}`;
     };
     try {
       let thumbUrl = undefined;
@@ -130,6 +129,10 @@ export const UploadDialog = () => {
           {
             access: "public",
             handleUploadUrl: "/api/upload",
+            clientPayload: JSON.stringify({
+              userId: userId,
+              orgId: orgId,
+            }),
           }
         );
         thumbUrl = result.url;
@@ -144,6 +147,10 @@ export const UploadDialog = () => {
           {
             access: "public",
             handleUploadUrl: "/api/upload",
+            clientPayload: JSON.stringify({
+              userId: userId,
+              orgId: orgId,
+            }),
           }
         );
         thumbUrl = result.url;
@@ -157,6 +164,10 @@ export const UploadDialog = () => {
         {
           access: "public",
           handleUploadUrl: "/api/upload",
+          clientPayload: JSON.stringify({
+            userId: userId,
+            orgId: orgId,
+          }),
         }
       );
 
@@ -253,191 +264,209 @@ export const UploadDialog = () => {
       }}
       open={open}>
       <DialogContent className="flex-1  md:min-w-[calc(100vw-3rem)] lg:min-w-[900px]">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <DialogHeader>
-              <DialogTitle>Upload Media</DialogTitle>
-              <DialogDescription>
-                Upload your media files here. You can
-                organize them into folders and set their
-                visibility.
-              </DialogDescription>
-            </DialogHeader>
+        {!vercelCofig?.vercelBlobReadWriteToken ? (
+          <div className="p-6 m-4 border-2 border-dashed rounded-lg text-center">
+            <DialogTitle className="text-lg font-medium">
+              Storage Not Configured
+            </DialogTitle>
+            <p className="text-muted-foreground mb-4">
+              Please add your Vercel Blob token in settings
+              to start uploading media.
+            </p>
+            <Button
+              onClick={() => {
+                router.push("/storage");
+                setOpen(false);
+              }}>
+              Go to Storage
+            </Button>
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+              <DialogHeader>
+                <DialogTitle>Upload Media</DialogTitle>
+                <DialogDescription>
+                  Upload your media files here. You can
+                  organize them into folders and set their
+                  visibility.
+                </DialogDescription>
+              </DialogHeader>
 
-            <div className="my-4 md:grid md:grid-cols-2 gap-4 space-y-4">
-              {/* Media Name */}
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        className="w-full"
-                        placeholder="e.g. Video File 1"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Folder */}
-              <FormField
-                control={form.control}
-                name="folderId"
-                render={({ field }) => (
-                  // TODO:Fix spacing
-                  <FormItem className="space-y-0">
-                    <FormLabel>
-                      Folder
-                      <Button
-                        onClick={() =>
-                          setCreateFolderDialogOpen?.(true)
-                        }
-                        type="button"
-                        className="text-xs ml-auto cursor-pointer hover:opacity-90"
-                        size={"icon-xs"}>
-                        <PlusCircleIcon />
-                      </Button>
-                    </FormLabel>
-
-                    <SearchableSelect
-                      options={
-                        existingFolders?.map(
-                          (folder: any) => ({
-                            label: folder.name,
-                            value: folder._id,
-                          })
-                        ) ?? []
-                      }
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Select Parent Folder"
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Category */}
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        className="w-full"
-                        placeholder="e.g. Education, Entertainment, etc"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Tags */}
-              <FormField
-                control={form.control}
-                name="tags"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel>
-                      Tags
-                      <p className="text-muted-foreground/50">
-                        (Separate with commas)
-                      </p>
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        className="w-full"
-                        placeholder="e.g. youtube, tutorial, music"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {/* Is Public */}
-              <FormField
-                control={form.control}
-                name="isPublic"
-                render={({ field }) => (
-                  /* We remove space-y-2 and add self-start to pin it to the top of the grid cell */
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 self-start">
-                    <FormControl>
-                      <Checkbox
-                        id="isPublic"
-                        className="size-5 border-gray-300"
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Is Public ?</FormLabel>
-                      <FormMessage />
-                    </div>
-                  </FormItem>
-                )}
-              />
-              <div>
-                {/* tempSpane */}
-                </div>
-              {/* File */}
-              <FormField
-                control={form.control}
-                name="file"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel className="flex justify-between">
-                      Dropzone
-                    </FormLabel>
-                    <FormControl>
-                      <Dropzone
-                        accept={{
-                          // Images
-                          "image/jpeg": [],
-                          "image/png": [],
-                          "image/webp": [],
-                          // GIFs
-                          "image/gif": [],
-                          // Videos
-                          "video/mp4": [],
-                          "video/webm": [],
-                          "video/ogg": [],
-                          "video/quicktime": [], // For .mov files
-                        }}
-                        disabled={
-                          form.formState.isSubmitting
-                        }
-                        maxFiles={1}
-                        maxSize={500 * 1024 * 1024} // 500 MB
-                        onDrop={handleFileDrop}
-                        src={uploadedFiles}>
-                        <DropzoneEmptyState />
-                        <DropzoneContent />
-                      </Dropzone>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {/* Thumbnail Dropzone */}
-              {isVideo && (
+              <div className="my-4 md:grid md:grid-cols-2 gap-4 space-y-4">
+                {/* Media Name */}
                 <FormField
                   control={form.control}
-                  name="thumbnailFile"
+                  name="name"
                   render={({ field }) => (
-                    <FormItem className="space-y-2 h-fit">
-                      <FormLabel className="flex justify-between h-fit">
-                        Thumbnail Dropzone
-                        {/* <span className="flex items-center gap-x-1">
+                    <FormItem className="space-y-2">
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          className="w-full"
+                          placeholder="e.g. Video File 1"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Folder */}
+                <FormField
+                  control={form.control}
+                  name="folderId"
+                  render={({ field }) => (
+                    // TODO:Fix spacing
+                    <FormItem className="space-y-0">
+                      <FormLabel>
+                        Folder
+                        <Button
+                          onClick={() =>
+                            setCreateFolderDialogOpen?.(
+                              true
+                            )
+                          }
+                          type="button"
+                          className="text-xs ml-auto cursor-pointer hover:opacity-90"
+                          size={"icon-xs"}>
+                          <PlusCircleIcon />
+                        </Button>
+                      </FormLabel>
+
+                      <SearchableSelect
+                        options={
+                          existingFolders?.map(
+                            (folder: any) => ({
+                              label: folder.name,
+                              value: folder._id,
+                            })
+                          ) ?? []
+                        }
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select Parent Folder"
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Category */}
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel>Category</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          className="w-full"
+                          placeholder="e.g. Education, Entertainment, etc"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Tags */}
+                <FormField
+                  control={form.control}
+                  name="tags"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel>
+                        Tags
+                        <p className="text-muted-foreground/50">
+                          (Separate with commas)
+                        </p>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          className="w-full"
+                          placeholder="e.g. youtube, tutorial, music"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {/* Is Public */}
+                <FormField
+                  control={form.control}
+                  name="isPublic"
+                  render={({ field }) => (
+                    /* We remove space-y-2 and add self-start to pin it to the top of the grid cell */
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 self-start">
+                      <FormControl>
+                        <Checkbox
+                          id="isPublic"
+                          className="size-5 border-gray-300"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Is Public ?</FormLabel>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <div>{/* tempSpane */}</div>
+                {/* File */}
+                <FormField
+                  control={form.control}
+                  name="file"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel className="flex justify-between">
+                        Dropzone
+                      </FormLabel>
+                      <FormControl>
+                        <Dropzone
+                          accept={{
+                            // Images
+                            "image/jpeg": [],
+                            "image/png": [],
+                            "image/webp": [],
+                            // GIFs
+                            "image/gif": [],
+                            // Videos
+                            "video/mp4": [],
+                            "video/webm": [],
+                            "video/ogg": [],
+                            "video/quicktime": [], // For .mov files
+                          }}
+                          disabled={
+                            form.formState.isSubmitting
+                          }
+                          maxFiles={1}
+                          maxSize={500 * 1024 * 1024} // 500 MB
+                          onDrop={handleFileDrop}
+                          src={uploadedFiles}>
+                          <DropzoneEmptyState />
+                          <DropzoneContent />
+                        </Dropzone>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {/* Thumbnail Dropzone */}
+                {isVideo && (
+                  <FormField
+                    control={form.control}
+                    name="thumbnailFile"
+                    render={({ field }) => (
+                      <FormItem className="space-y-2 h-fit">
+                        <FormLabel className="flex justify-between h-fit">
+                          Thumbnail Dropzone
+                          {/* <span className="flex items-center gap-x-1">
                           <Checkbox
                             disabled={
                               form.formState.isSubmitting
@@ -488,56 +517,57 @@ export const UploadDialog = () => {
                             </TooltipContent>
                           </Tooltip>
                         </span> */}
-                      </FormLabel>
-                      <FormControl>
-                        <Dropzone
-                          className="w-full"
-                          accept={{
-                            // Images
-                            "image/jpeg": [],
-                            "image/png": [],
-                            "image/webp": [],
-                          }}
-                          disabled={
-                            form.formState.isSubmitting
-                          }
-                          maxFiles={1}
-                          maxSize={500 * 1024 * 1024} // 500 MB
-                          onDrop={handleThumbnailFileDrop}
-                          src={uploadedThumbnailFiles}>
-                          <DropzoneEmptyState />
-                          <DropzoneContent />
-                        </Dropzone>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                disabled={form.formState.isSubmitting}
-                onClick={handleCancel}
-                type="button"
-                variant={"outline"}>
-                <XCircleIcon />
-                Cancel
-              </Button>
-              <Button
-                disabled={
-                  disabled || form.formState.isSubmitting
-                }
-                className="hover:opacity-80"
-                type="submit">
-                <SaveIcon />
-                {form.formState.isSubmitting
-                  ? "Saving..."
-                  : "Save File"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+                        </FormLabel>
+                        <FormControl>
+                          <Dropzone
+                            className="w-full"
+                            accept={{
+                              // Images
+                              "image/jpeg": [],
+                              "image/png": [],
+                              "image/webp": [],
+                            }}
+                            disabled={
+                              form.formState.isSubmitting
+                            }
+                            maxFiles={1}
+                            maxSize={500 * 1024 * 1024} // 500 MB
+                            onDrop={handleThumbnailFileDrop}
+                            src={uploadedThumbnailFiles}>
+                            <DropzoneEmptyState />
+                            <DropzoneContent />
+                          </Dropzone>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  disabled={form.formState.isSubmitting}
+                  onClick={handleCancel}
+                  type="button"
+                  variant={"outline"}>
+                  <XCircleIcon />
+                  Cancel
+                </Button>
+                <Button
+                  disabled={
+                    disabled || form.formState.isSubmitting
+                  }
+                  className="hover:opacity-80"
+                  type="submit">
+                  <SaveIcon />
+                  {form.formState.isSubmitting
+                    ? "Saving..."
+                    : "Save File"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        )}
       </DialogContent>
     </Dialog>
   );

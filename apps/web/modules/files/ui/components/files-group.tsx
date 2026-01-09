@@ -82,6 +82,11 @@ export const FilesGroup = () => {
           {filteredFiles.length} Files
         </div>
       </div>
+      {filteredFiles.length === 0 && (
+        <div className="p-4 italic text-sm text-center text-muted-foreground">
+          No files in this folder.
+        </div>
+      )}
       <ScrollArea>
         <div className=" py-0 p-3">
           <div className=" lg:max-h-[calc(100vh-188px)] grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 ">

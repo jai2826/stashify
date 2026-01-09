@@ -1,11 +1,13 @@
 import { ConvexError, v } from "convex/values";
-import getFileType from "../utils/getFileType.js";
-import { mutation } from "../_generated/server.js";
-import { get } from "node:http";
+import { action, mutation } from "../_generated/server.js";
 import {
   mustGetIdentity,
   validateAccess,
 } from "../utils/auth.js";
+import getFileType from "../utils/getFileType.js";
+import { api, internal } from "../_generated/api.js";
+import { del } from "@vercel/blob";
+import { useAction } from "convex/react";
 
 export const saveMediaRecord = mutation({
   args: {
@@ -25,18 +27,7 @@ export const saveMediaRecord = mutation({
   handler: async (ctx, args) => {
     let position = 0;
     const { userId, orgId } = await mustGetIdentity(ctx);
-    const valid = await validateAccess({
-      ctx,
-      userId,
-      orgId,
-    });
 
-    if (!valid) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Access denied",
-      });
-    }
     if (!args.isFileValid) {
       console.log("File is Invalid");
       throw new ConvexError({
@@ -113,35 +104,18 @@ export const updateMediaRecord = mutation({
       });
     }
 
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Identity not found",
-      });
-    }
+    const { userId, orgId } = await mustGetIdentity(ctx);
 
-    const orgId = identity.orgId as string;
-    if (orgId === null) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Organization not found",
-      });
-    }
-    const userId = identity.userId as string;
-    if (userId === null) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "User not found",
-      });
-    }
-    if (
-      orgId !== existing.organizationId ||
-      userId !== existing.userId
-    ) {
+    const valid = await validateAccess({
+      ctx,
+      userId: existing.userId,
+      orgId: existing.organizationId,
+    });
+
+    if (!valid) {
       throw new ConvexError({
         code: "UNAUTHORIZED",
-        message: "Unauthorized to update this media record",
+        message: "Access denied",
       });
     }
 
@@ -163,5 +137,107 @@ export const updateMediaRecord = mutation({
     });
 
     return { success: true, mediaId: id };
+  },
+});
+
+// export const deleteMediaRecord = mutation({
+//   args: {
+//     id: v.id("media"),
+//   },
+//   handler: async (ctx, args) => {
+//     const file = await ctx.db.get(args.id);
+//     if (!file) {
+//       throw new ConvexError({
+//         code: "NOT_FOUND",
+//         message: "Media record not found",
+//       });
+//     }
+//     const { userId, orgId } = await mustGetIdentity(ctx);
+//     const valid = await validateAccess({
+//       ctx,
+//       userId: file.userId,
+//       orgId: file.organizationId,
+//     });
+//     if (!valid) {
+//       throw new ConvexError({
+//         code: "UNAUTHORIZED",
+//         message: "Access denied",
+//       });
+//     }
+
+//     await ctx.db.delete(args.id);
+//     return { success: true };
+//   },
+// });
+export const removeMediaFromDb = mutation({
+  args: {
+    id: v.id("media"),
+  },
+  handler: async (ctx, args) => {
+    const file = await ctx.db.get(args.id);
+    if (!file) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Media record not found",
+      });
+    }
+    const { userId, orgId } = await mustGetIdentity(ctx);
+    const valid = await validateAccess({
+      ctx,
+      userId: file.userId,
+      orgId: file.organizationId,
+    });
+    if (!valid) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Access denied",
+      });
+    }
+
+    await ctx.db.delete(args.id);
+    return {
+      thumbnailUrl: file.thumbnailUrl,
+      url: file.url,
+    };
+  },
+});
+
+export const deleteMediaRecord = action({
+  args: {
+    id: v.id("media"),
+  },
+  handler: async (ctx, args) => {
+    const { userId, orgId } = await mustGetIdentity(ctx);
+    // 1. Delete from DB first via Mutation
+    // This ensures if the DB delete fails, we don't delete the physical file
+    const fileData = await ctx.runMutation(
+      api.main.media.removeMediaFromDb,
+      {
+        id: args.id,
+      }
+    );
+
+    // 2. Delete from Vercel Blob
+    const urlsToDelete = [];
+    if (fileData.thumbnailUrl)
+      urlsToDelete.push(fileData.thumbnailUrl);
+    if (fileData.url) urlsToDelete.push(fileData.url);
+
+    const data = await ctx.runQuery(
+      internal.private.vercel.getVercelToken,
+      {
+        userId: userId,
+        orgId: orgId,
+      }
+    );
+    
+
+    if (urlsToDelete.length > 0) {
+      await del(urlsToDelete, {
+        token: data?.vercelBlobReadWriteToken,
+      });
+    }
+
+    return { success: true };
   },
 });

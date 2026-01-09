@@ -1,8 +1,18 @@
+// app/api/upload/route.ts
 import {
   handleUpload,
   type HandleUploadBody,
 } from "@vercel/blob/client";
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server"; // Using Convex server-side client
+import {
+  api,
+  internal,
+} from "@workspace/backend/convex/_generated/api";
+import { ConvexHttpClient } from "convex/browser";
+
+const convex = new ConvexHttpClient(
+  process.env.NEXT_PUBLIC_CONVEX_URL!
+);
 
 export async function POST(
   request: Request
@@ -10,46 +20,42 @@ export async function POST(
   const body = (await request.json()) as HandleUploadBody;
 
   try {
+    // 1. Get the payload to identify the user
+    if (!("clientPayload" in body.payload)) {
+      throw new Error("Invalid payload structure");
+    }
+    const { userId, orgId } = JSON.parse(
+      body.payload.clientPayload || "{}"
+    );
+
+    // 2. Fetch the user's token BEFORE calling handleUpload
+    const userConfig = await convex.action(
+      api.system.vercel.getVercelTokenAction,
+      { userId, orgId }
+    );
+
+    const token = userConfig?.vercelBlobReadWriteToken;
+
+    if (!token) {
+      throw new Error(
+        "No Vercel Blob token configured for this account."
+      );
+    }
+
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async (
-        pathname
-        /* clientPayload */
-      ) => {
-        // Generate a client token for the browser to upload the file
-        // Make sure to authenticate and authorize users before generating the token.
-        // Otherwise, you're allowing anonymous uploads.
-
+      token, // PASS THE TOKEN DIRECTLY HERE
+      onBeforeGenerateToken: async () => {
         return {
           allowedContentTypes: [
-            // Images formats allowed
-            "image/heic",
             "image/jpeg",
             "image/png",
-            "image/webp",
-            "image/gif",
-            "image/svg+xml",
-            "image/avif",
-            // Video formats allowed
             "video/mp4",
-            "video/webm",
-            "video/quicktime",
-            "video/x-msvideo",
-            "video/x-matroska",
-            "video/mpeg",
-            "video/3gpp",
           ],
-          tokenPayload: JSON.stringify({}),
-          allowOverwrite:true,
+          tokenPayload: JSON.stringify({ userId, orgId }),
+          allowOverwrite: true,
         };
-      },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
-        console.log(
-          "blob upload completed",
-          blob,
-          tokenPayload
-        );
       },
     });
 
@@ -57,7 +63,7 @@ export async function POST(
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message },
-      { status: 400 } // The webhook will retry 5 times waiting for a 200
+      { status: 400 }
     );
   }
 }

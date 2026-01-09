@@ -5,10 +5,12 @@ import {
 } from "@clerk/nextjs";
 import {
   CreditCardIcon,
+  DatabaseIcon,
   FolderIcon,
   LayoutDashboardIcon,
   LibraryBigIcon,
-  PaletteIcon
+  MousePointer2Icon,
+  PaletteIcon,
 } from "lucide-react";
 
 import {
@@ -41,6 +43,11 @@ const storage = [
 ];
 const configurationItems = [
   {
+    title: "Storage",
+    url: "/storage",
+    icon: DatabaseIcon,
+  },
+  {
     title: "Widget Customization",
     url: "/customization",
     icon: PaletteIcon,
@@ -56,6 +63,13 @@ const accountItems = [
     title: "Plans & Billing",
     url: "/billings",
     icon: CreditCardIcon,
+  },
+];
+const utilities = [
+  {
+    title: "Media Picker",
+    url: "/media-picker",
+    icon: MousePointer2Icon,
   },
 ];
 
@@ -163,6 +177,31 @@ export const DashboardSidebar = () => {
           <SidebarContent>
             <SidebarMenu>
               {accountItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={item.title}
+                    isActive={isActive(item.url)}
+                    className={cn(
+                      isActive(item.url) &&
+                        "bg-gradient-to-b from-sidebar-primary  to-primary! text-sidebar-primary-foreground! hover:opacity-90"
+                    )}>
+                    <Link href={item.url}>
+                      <item.icon className="size-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarContent>
+        </SidebarGroup>
+        {/* Utilities */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Utilities</SidebarGroupLabel>
+          <SidebarContent>
+            <SidebarMenu>
+              {utilities.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild

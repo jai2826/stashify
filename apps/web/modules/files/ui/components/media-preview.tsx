@@ -9,13 +9,13 @@ interface MediaPreviewProps {
 const MediaPreview = ({ media }: MediaPreviewProps) => {
   if (media.type === "image" || media.type === "gif") {
     return (
-      <div className="cursor-pointer relative overflow-hidden rounded-md group">
+      <div className="group cursor-pointer relative overflow-hidden rounded-md group">
         <ImagePreview
           src={media.url}
           alt={media.name}
         />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all">
-          {/* <PlayIcon className="w-8 h-8 text-white" /> */}
+        <div className="absolute -bottom-10 inset-x-0 transform  group-hover:bottom-0 flex items-end text-primary justify-center bg-black/20 group-hover:bg-black/40 transition-all p-1 text-sm font-mono">
+          {media.name}
         </div>
       </div>
     );
@@ -27,7 +27,10 @@ const MediaPreview = ({ media }: MediaPreviewProps) => {
           alt={media.name}
         />
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all">
-          <PlayIcon className="w-8 h-8 text-white" />
+          <PlayIcon className="w-8 h-8 text-primary" />
+        </div>
+        <div className="absolute -bottom-10 inset-x-0 transform  group-hover:bottom-0 flex items-end text-primary justify-center bg-black/20 group-hover:bg-black/40 transition-all p-1 text-sm font-mono">
+          {media.name}
         </div>
       </div>
     );

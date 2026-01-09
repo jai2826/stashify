@@ -10,7 +10,9 @@
 
 import type * as main_media from "../main/media.js";
 import type * as private_folder from "../private/folder.js";
+import type * as private_vercel from "../private/vercel.js";
 import type * as public_media from "../public/media.js";
+import type * as system_vercel from "../system/vercel.js";
 import type * as utils_auth from "../utils/auth.js";
 import type * as utils_getFileType from "../utils/getFileType.js";
 
@@ -23,7 +25,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   "main/media": typeof main_media;
   "private/folder": typeof private_folder;
+  "private/vercel": typeof private_vercel;
   "public/media": typeof public_media;
+  "system/vercel": typeof system_vercel;
   "utils/auth": typeof utils_auth;
   "utils/getFileType": typeof utils_getFileType;
 }>;

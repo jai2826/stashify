@@ -88,4 +88,15 @@ export default defineSchema({
       "organizationId",
       "userId",
     ]),
+
+  vercelStorageConfigs: defineTable({
+    organizationId: v.string(), // CRUCIAL for security (multi-tenancy)
+    userId: v.string(), //From Clerk JWT
+    vercelBlobReadWriteToken: v.optional(v.string()),
+  })
+    .index("by_organization_user", [
+      "organizationId",
+      "userId",
+    ])
+    .index("by_user", ["userId"]),
 });

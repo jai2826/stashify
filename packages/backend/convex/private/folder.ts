@@ -69,7 +69,12 @@ export const getFolderByIdWithFiles = query({
       )
       .collect();
 
-    return { folder, files };
+    return {
+      folder,
+      files: files.sort(
+        (a, b) => (a.position ?? 0) - (b.position ?? 0)
+      ),
+    };
   },
 });
 
@@ -145,5 +150,54 @@ export const listFoldersWithPreviews = query({
       })
     );
     return foldersWithFiles;
+  },
+});
+
+export const deleteFolder = mutation({
+  args: {
+    id: v.id("folders"),
+  },
+  handler: async (ctx, args) => {
+    const folder = await ctx.db.get(args.id);
+    if (!folder) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Folder not found",
+      });
+    }
+    const { userId, orgId } = await mustGetIdentity(ctx);
+    const valid = await validateAccess({
+      ctx,
+      userId: folder.userId,
+      orgId: folder.organizationId,
+    });
+    if (!valid) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Access denied",
+      });
+    }
+
+    await ctx.db.delete(args.id);
+    return { success: true };
+  },
+});
+
+export const updatePositions = mutation({
+  args: {
+    files: v.array(
+      v.object({
+        fileId: v.id("media"),
+        position: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    // Convex executes this in a single transaction
+    const updates = args.files.map((file) =>
+      ctx.db.patch(file.fileId, { position: file.position })
+    );
+
+    await Promise.all(updates);
   },
 });

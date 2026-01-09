@@ -29,7 +29,7 @@ export function FolderCard({ folder }: FolderCardProps) {
         {/* The Stacked Images Container */}
         <div className="relative w-28 h-20 mt-2">
           {previews.length > 0 ? (
-            previews.map((file, index) => (
+            previews.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map((file, index) => (
               <div
                 key={file._id}
                 className={cn(

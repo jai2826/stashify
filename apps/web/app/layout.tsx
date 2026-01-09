@@ -1,13 +1,12 @@
 import { Geist, Geist_Mono } from "next/font/google";
 
-import "@workspace/ui/globals.css";
 import { Providers } from "@/components/providers";
-import { ClerkProvider } from "@clerk/nextjs";
 import { AuthGuard } from "@/modules/auth/ui/components/auth-guard";
+import { ClientInit } from "@/modules/dashboard/ui/components/client-init";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@workspace/ui/components/sonner";
+import "@workspace/ui/globals.css";
 import { Provider as JotaiProvider } from "jotai";
-import { UploadDialog } from "@workspace/ui/modules/upload-dialog";
-import { CreateFolderDialog } from "@workspace/ui/modules/create-folder-dialog";
 const fontSans = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -32,6 +31,7 @@ export default function RootLayout({
         <JotaiProvider>
           <ClerkProvider>
             <Providers>
+              <ClientInit/>
               <Toaster />
              
               <AuthGuard>{children}</AuthGuard>

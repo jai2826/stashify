@@ -32,7 +32,7 @@ export function VideoPlayer({
   return (
     <div
       className={cn(
-        " aspect-video w-full overflow-hidden rounded-md bg-black border border-white/10 shadow-2xl",
+        " aspect-video w-full overflow-hidden rounded-md   shadow-2xl",
         className
       )}>
       <video

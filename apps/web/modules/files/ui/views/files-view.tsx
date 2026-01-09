@@ -1,14 +1,18 @@
 "use client";
 import { FilesGroup } from "@/modules/files/ui/components/files-group";
+import { api } from "@workspace/backend/convex/_generated/api";
 import { Button } from "@workspace/ui/components/button";
 import { useUploadModal } from "@workspace/ui/hooks/use-upload-modal";
 import { SearchBar } from "@workspace/ui/modules/search-bar";
+import { useQuery } from "convex/react";
 import { FilterIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface FilesViewProps {}
 
 export const FilesView = ({}: FilesViewProps) => {
   const { openUpload } = useUploadModal();
+
   return (
     <div className="w-full h-full">
       <div className="flex flex-col gap-2 md:flex-row justify-between md:items-center w-full p-4 border-b">
