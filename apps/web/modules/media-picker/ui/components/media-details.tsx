@@ -35,12 +35,10 @@ const MediaDetails = ({
             key === "isModerated" ||
             key === "isOptimized" ||
             key === "originalUrl" ||
-            key === "position" 
+            key === "position"
           ) {
             return null;
           }
-
-          
 
           return (
             <div
