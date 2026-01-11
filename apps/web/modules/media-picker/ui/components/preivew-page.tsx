@@ -1,39 +1,40 @@
 import { ImagePreview } from "@/modules/files/ui/components/file-preview-dialog";
+import MediaDetails from "@/modules/media-picker/ui/components/media-details";
 import { PreviewMediaAtom } from "@workspace/ui/lib/atoms";
 import { VideoPlayer } from "@workspace/ui/modules/video-player";
 import { useAtomValue } from "jotai";
 import Image from "next/image";
 
 const PreviewPage = () => {
-  const file = useAtomValue(PreviewMediaAtom);
+  const media = useAtomValue(PreviewMediaAtom);
 
   return (
-    <div className="flex flex-col lg:flex-row w-full h-fit lg:w-3/5  p-2">
-      <div className=" p-2 border rounded-md">
-        {file ? (
+    <div className="flex flex-col gap-2 lg:flex-row w-full h-fit  p-2">
+      <div className="w-full p-2 border rounded-md">
+        {media ? (
           <>
-            {(file?.type === "image" ||
-              file?.type === "gif") && (
+            {(media?.type === "image" ||
+              media?.type === "gif") && (
               <ImagePreview
-                src={file?.url ?? ""}
-                alt={file?.name ?? "File Preview"}
+                src={media?.url ?? ""}
+                alt={media?.name ?? "media Preview"}
               />
             )}
-            {file?.type === "video" && (
+            {media?.type === "video" && (
               <VideoPlayer
-                url={file.url ?? ""}
-                poster={file.thumbnailUrl}
+                url={media.url ?? ""}
+                poster={media.thumbnailUrl}
               />
             )}
           </>
         ) : (
           <div className="w-full h-full flex flex-col justify-center items-center">
             <span>No Preview Available</span>
-            <span>Pick a media to preview</span>
+            <span>Pick a Media to preview</span>
           </div>
         )}
       </div>
-      {file && <div>Hello Harry</div>}
+      {media && <MediaDetails media={media} />}
     </div>
   );
 };
